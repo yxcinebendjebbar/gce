@@ -1,5 +1,5 @@
-import subprocess
 import argparse
+import subprocess
 import re
 from rich.console import Console
 from rich.table import Table
@@ -9,45 +9,48 @@ from rich.text import Text
 console = Console()
 
 
-def get_git_diff():
-
-    """Fetches the staged git diff."""
-    try:
-        result = subprocess.run(["git", "diff", "--staged"], capture_output=True, text=True)
-        return result.stdout.strip()
-    except Exception as e:
-        print("Error fetching git diff:", e)
-        return None
-
-
 def get_git_changes():
+    """Fetches staged changes from Git and counts file/line modifications."""
     try:
         # Get changed file names
         files_result = subprocess.run(
             ["git", "diff", "--staged", "--name-only"],
-            capture_output=True, text=True, check=True
+            capture_output=True, text=True, check=True, encoding="utf-8"
         )
         changed_files = files_result.stdout.strip().split("\n")
 
-        # Get actual code changes
+        # Get actual code changes (with line counts)
         diff_result = subprocess.run(
-            ["git", "diff", "--staged"],
-            capture_output=True, text=True, check=True
+            ["git", "diff", "--staged", "--numstat"],  # `--numstat` gives line count
+            capture_output=True, text=True, check=True, encoding="utf-8"
         )
-        changes = diff_result.stdout.strip()
+        diff_lines = diff_result.stdout.strip().split("\n")
 
-        return changed_files if changed_files != [""] else [], changes
+        # Count total lines added/removed
+        total_added = 0
+        total_removed = 0
+        for line in diff_lines:
+            parts = line.split("\t")
+            if len(parts) == 3:  # numstat format: added_lines, removed_lines, filename
+                added, removed, _ = parts
+                total_added += int(added) if added.isdigit() else 0
+                total_removed += int(removed) if removed.isdigit() else 0
+
+        # Return all values, including the raw diff text
+        diff_text = diff_result.stdout.strip()
+        return changed_files if changed_files != [""] else [], total_added, total_removed, diff_text
 
     except subprocess.CalledProcessError as e:
-        console.print(f"[bold red]Error fetching Git changes:[/bold red] {e}")
-        return [], ""
+        console.print(f"[bold red]❌ Error fetching Git changes:[/bold red] {e}")
+        return [], 0, 0, ""
+
 
 
 def extract_relevant_changes(diff_text):
-    """Extract meaningful code changes from Git diff output."""
+    """Extracts meaningful code changes from Git diff output."""
     changes = []
     for line in diff_text.split("\n"):
-        # Ignore metadata lines, only keep actual code changes
+        # Ignore metadata, only keep actual code changes
         if line.startswith("+") and not line.startswith("+++"):
             changes.append(line[1:].strip())  # Remove '+' sign
     return changes
@@ -66,50 +69,69 @@ def classify_changes(changes):
         else:
             categories["[yellow]Updated[/yellow]"].append(change)  # Default to "Updated"
 
-
     return categories
 
-
 def generate_commit_message(categories):
-    """Generate a commit message based on classified changes."""
+    """Generates a structured commit message."""
     commit_parts = []
-
     for category, changes in categories.items():
         if changes:
             commit_parts.append(f"{category}: {changes[0]}")  # Use first detected change
-    
     return " | ".join(commit_parts) if commit_parts else "Updated codebase"
 
-
-def display_summary(files, categories, commit_message):
-    """Displays a sleek summary using Rich tables and styling."""
+def display_summary(files, total_added, total_removed, commit_message):
+    """Displays a sleek commit summary with stats."""
     console.print("\n[bold cyan]📂 Changed Files:[/bold cyan]")
     for file in files:
         console.print(f" - [bold white]{file}[/bold white]")
 
-    console.print("\n[bold cyan]🔍 Extracted Changes:[/bold cyan]")
-    table = Table(show_header=True, header_style="bold magenta")
-    table.add_column("Category", style="bold", justify="left")
-    table.add_column("Example Change", style="white", justify="left")
+    console.print("\n[bold cyan]📊 Commit Stats:[/bold cyan]")
+    console.print(f"📄 Files Changed: [bold yellow]{len(files)}[/bold yellow]")
+    console.print(f"➕ Lines Added: [bold green]{total_added}[/bold green]")
+    console.print(f"➖ Lines Removed: [bold red]{total_removed}[/bold red]")
 
-    for category, changes in categories.items():
-        if changes:
-            table.add_row(category, changes[0])
-
-    console.print(table)
-    
     console.print("\n[bold cyan]✍ Suggested Commit Message:[/bold cyan]")
     console.print(f"[bold green]{commit_message}[/bold green]")
 
 
 
+def assign_emoji(commit_message):
+    """Adds appropriate emojis based on commit content."""
+    emoji_map = {
+        "add": "✨", "create": "✨", "new": "✨",  # Features
+        "fix": "🐛", "bug": "🐛", "resolve": "🐛",  # Bug fixes
+        "refactor": "🧹", "cleanup": "🧹", "optimize": "🧹"  # Refactoring
+    }
+
+    for keyword, emoji in emoji_map.items():
+        if keyword in commit_message.lower():
+            return f"{emoji} {commit_message}"
+
+    return f"📌 {commit_message}"  # Default marker
+
+def format_commit_message(commit_message, use_gitmoji=True):
+    """Formats the commit message based on the chosen style."""
+    gitmoji_map = {
+        "✨": ":sparkles:",
+        "🐛": ":bug:",
+        "🧹": ":broom:",
+        "📌": ":pushpin:"
+    }
+
+    if use_gitmoji:
+        for emoji, gitmoji in gitmoji_map.items():
+            commit_message = commit_message.replace(emoji, gitmoji)
+
+    return commit_message
+
 
 def main():
     parser = argparse.ArgumentParser(description="✨ Enhanced Git Commit CLI ✨")
     parser.add_argument("message", type=str, nargs="?", default="", help="Commit message (optional)")
+    parser.add_argument("--gitmoji", action="store_true", help="Use Gitmoji format instead of emojis")
     args = parser.parse_args()
 
-    changed_files, diff_text = get_git_changes()
+    changed_files, total_added, total_removed, diff_text = get_git_changes()
     if not changed_files:
         console.print("[bold yellow]⚠ No staged changes found. Please stage your files using 'git add'.[/bold yellow]")
         return
@@ -117,15 +139,15 @@ def main():
     extracted_changes = extract_relevant_changes(diff_text)
     categorized_changes = classify_changes(extracted_changes)
     suggested_commit = generate_commit_message(categorized_changes)
+    decorated_commit = assign_emoji(suggested_commit)
+    final_commit = format_commit_message(decorated_commit, args.gitmoji)
 
-    display_summary(changed_files, categorized_changes, suggested_commit)
+    display_summary(changed_files, total_added, total_removed, final_commit)
 
     if Confirm.ask("\n✅ Accept this commit message?"):
-        subprocess.run(["git", "commit", "-m", suggested_commit])
+        subprocess.run(["git", "commit", "-m", final_commit])
         console.print("[bold green]✔ Commit successful![/bold green]")
     else:
         console.print("[bold red]❌ Commit aborted.[/bold red]")
-
-
 if __name__ == "__main__":
     main()
