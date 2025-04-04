@@ -12,31 +12,29 @@ console = Console()
 def get_git_changes():
     """Fetches staged changes from Git and counts file/line modifications."""
     try:
-        # Get changed file names
         files_result = subprocess.run(
             ["git", "diff", "--staged", "--name-only"],
             capture_output=True, text=True, check=True, encoding="utf-8"
         )
         changed_files = files_result.stdout.strip().split("\n")
 
-        # Get actual code changes (with line counts)
         diff_result = subprocess.run(
-            ["git", "diff", "--staged", "--numstat"],  # `--numstat` gives line count
+            ["git", "diff", "--staged", "--numstat"], 
             capture_output=True, text=True, check=True, encoding="utf-8"
         )
         diff_lines = diff_result.stdout.strip().split("\n")
 
-        # Count total lines added/removed
+       
         total_added = 0
         total_removed = 0
         for line in diff_lines:
             parts = line.split("\t")
-            if len(parts) == 3:  # numstat format: added_lines, removed_lines, filename
+            if len(parts) == 3:  
                 added, removed, _ = parts
                 total_added += int(added) if added.isdigit() else 0
                 total_removed += int(removed) if removed.isdigit() else 0
 
-        # Return all values, including the raw diff text
+        
         diff_text = diff_result.stdout.strip()
         return changed_files if changed_files != [""] else [], total_added, total_removed, diff_text
 
@@ -50,7 +48,7 @@ def extract_relevant_changes(diff_text):
     """Extracts meaningful code changes from Git diff output."""
     changes = []
     for line in diff_text.split("\n"):
-        # Ignore metadata, only keep actual code changes
+       
         if line.startswith("+") and not line.startswith("+++"):
             changes.append(line[1:].strip())  # Remove '+' sign
     return changes
@@ -67,7 +65,7 @@ def classify_changes(changes):
         elif any(word in change.lower() for word in ["fix", "resolve", "correct", "bug"]):
             categories["[red]Fixed[/red]"].append(change)
         else:
-            categories["[yellow]Updated[/yellow]"].append(change)  # Default to "Updated"
+            categories["[yellow]Updated[/yellow]"].append(change) 
 
     return categories
 
@@ -76,7 +74,7 @@ def generate_commit_message(categories):
     commit_parts = []
     for category, changes in categories.items():
         if changes:
-            commit_parts.append(f"{category}: {changes[0]}")  # Use first detected change
+            commit_parts.append(f"{category}: {changes[0]}")  
     return " | ".join(commit_parts) if commit_parts else "Updated codebase"
 
 def display_summary(files, total_added, total_removed, commit_message):
@@ -107,7 +105,7 @@ def assign_emoji(commit_message):
         if keyword in commit_message.lower():
             return f"{emoji} {commit_message}"
 
-    return f"📌 {commit_message}"  # Default marker
+    return f"📌 {commit_message}"  
 
 def format_commit_message(commit_message, use_gitmoji=True):
     """Formats the commit message based on the chosen style."""

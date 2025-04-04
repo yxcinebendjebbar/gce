@@ -11,7 +11,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'gce = gce.main:main',  # The entry point to your CLI tool
+            'gce = gce.main:main',
         ],
     },
     author="yxcinebendjebbar",
