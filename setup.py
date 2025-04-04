@@ -17,7 +17,7 @@ setup(
     author="yxcinebendjebbar",
     author_email="yacine.bbusiness@gmail.com",
     description="A CLI tool to enhance git commit messages with stats and emojis.",
-    url="https://github.com/yourusername/git-commit-enhancer",
+    url="https://github.com/yxcinebendjebbar/gce",
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
