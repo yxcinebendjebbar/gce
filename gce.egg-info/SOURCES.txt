@@ -1,9 +1,0 @@
-setup.py
-gce/__init__.py
-gce/main.py
-gce.egg-info/PKG-INFO
-gce.egg-info/SOURCES.txt
-gce.egg-info/dependency_links.txt
-gce.egg-info/entry_points.txt
-gce.egg-info/requires.txt
-gce.egg-info/top_level.txt

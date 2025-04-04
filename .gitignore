@@ -1,3 +1,3 @@
-build/*
-gce.egg-info/*
+/build/*
+/gce.egg-info/*
 *.egg-info/*
