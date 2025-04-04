@@ -1,0 +1,19 @@
+Metadata-Version: 2.4
+Name: gce
+Version: 1.0.1
+Summary: A CLI tool to enhance git commit messages with stats and emojis.
+Home-page: https://github.com/yourusername/git-commit-enhancer
+Author: yxcinebendjebbar
+Author-email: yacine.bbusiness@gmail.com
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Dist: gitpython
+Requires-Dist: inquirer
+Requires-Dist: rich
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: home-page
+Dynamic: requires-dist
+Dynamic: summary
